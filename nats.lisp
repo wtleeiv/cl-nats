@@ -62,25 +62,26 @@
   ;; create a new inbox subject, reusing sid functionality (for now)
   (let* ((inbox (format nil "INBOX.~A" (inc-sid connection)))
          (sid (subscribe connection inbox handler)))
-    (publish connection 
-             subject 
+    (publish connection
+             subject
              message
              :reply-to inbox)))
 
 (defun disconnect (connection)
   ""
-  ; TODO when connection open only
-  (handler-case
-      (bt:destroy-thread (thread-of connection))
-      (usocket:socket-close (socket-of connection))
-    (error (e)
-      (warn "Ignoring error when trying to close NATS socket: ~A" e))))
+					; TODO when connection open only
+  (if (connectedp connection)
+      (progn
+	(bt:destroy-thread (thread-of connection))
+	(usocket:socket-close (socket-of connection)))
+      (error (e)
+	     (warn "Ignoring error when trying to close NATS socket: ~A" e))))
 
-(defmacro with-connection ((var &rest args) 
+(defmacro with-connection ((var &rest args)
                            &body body)
   "Makes a new NATS connection with supplied args (see #'make-connection),
 waits for the connection, binds it to var, evaluates body, and finally
 disconnects."
   `(let ((,var (wait-for-connection (make-connection ,@args))))
-    (unwind-protect (progn ,@body)
-      (disconnect ,var))))
+     (unwind-protect (progn ,@body)
+       (disconnect ,var))))
